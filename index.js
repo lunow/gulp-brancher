@@ -112,28 +112,6 @@ module.exports = function(gulp) {
 		});
 	});
 
-	gulp.task('find-release-branch', function(done) {
-		exec('git branch', {}, function(err, stdout, stderr) {
-			if(err || stderr) {
-				done(err || stderr);
-				return;
-			}
-			console.log(stdout);
-			console.log('---');
-			var release_branches = []
-			_.each(stdout.split("\n"), function(branch) {
-				branch = _.trim(branch).replace('* ', '');
-				if(branch.substr(0, 7) == 'release') {
-					release_branches.push(branch);
-				}
-			}).sort(function(a, b){return a.split('-')[1]-b.split('-')[1]});
-			console.log(release_branches);
-
-
-			
-			done();
-		});
-	});
 
 	gulp.task('fix-done', function(done) {
 		
@@ -164,13 +142,29 @@ module.exports = function(gulp) {
 
 			//find latest release branch
 			function(branch_name, findLatestReleaseBranchCallback) {
-
+				exec('git branch', {}, function(err, stdout, stderr) {
+					if(err || stderr) {
+						findLatestReleaseBranchCallback(err || stderr);
+						return;
+					}
+					
+					var release_branches = []
+					_.each(stdout.split("\n"), function(branch) {
+						branch = _.trim(branch).replace('* ', '');
+						if(branch.substr(0, 7) == 'release') {
+							release_branches.push(branch);
+						}
+					}).sort(function(a, b){return a.split('-')[1]-b.split('-')[1]});
+					var latest_release = release_branches.pop();
+					gutil.log('assuming latest release branch is', latest_release);
+					findLatestReleaseBranchCallback(null, branch_name, latest_release);
+				});
 			},
 
-			//merge into release branch
-			function(branch_name, mergeToDevBranchCallback) {
+			//merge into dev branch
+			function(branch_name, release_branch, mergeToDevBranchCallback) {
 				async.waterfall([
-					//checkout branch
+					//checkout dev branch
 					function(checkoutBranchCallback) {
 						git.checkout('dev', {}, checkoutBranchCallback);
 					},
@@ -180,36 +174,37 @@ module.exports = function(gulp) {
 						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
 					}
 				], function(err) {
-					mergeToDevBranchCallback(err, branch_name);
+					mergeToDevBranchCallback(err, branch_name, release_branch);
 				});
 			},
 
 			//merge into release branch
-			function(branchName, mergeToreleaseBranchCallback) {
+			function(branch_name, release_branch, mergeToreleaseBranchCallback) {
 				async.waterfall([
-					//checkout branch
+					//checkout release_branch branch
 					function(checkoutBranchCallback) {
-						git.checkout('release', {}, checkoutBranchCallback);
+						git.checkout(release_branch, {}, checkoutBranchCallback);
 					},
 
 					//merge fix
 					function(mergefixCallback) {
-						git.merge(branchName, { args: '--no-ff' }, mergefixCallback);
+						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
 					}
 				], function(err) {
-					mergeToreleaseBranchCallback(err, branchName);
+					mergeToreleaseBranchCallback(err, branch_name);
 				});
 			}
 
 
 		], function(err) {
+			var gulpError = null;
 			if(err) {
-				console.log('fix failed:'.bold.red, err);
+				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				console.log('nice. thanks for the fix.'.bold.green, "\n");
+				gutil.log('nice. thanks for the fix.'.bold);
 			}
-			done();
+			done(gulpError);
 		});
 
 	});
