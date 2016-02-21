@@ -284,7 +284,7 @@ module.exports = function(gulp) {
 	gulp.task('task-done', function(done) {
 		
 		async.waterfall([
-			//supposed to be on beta branch
+			//supposed to be on task branch
 			function(checkBranchCallback) {
 				branch(function(err, res) {
 					if(err) {
@@ -327,13 +327,14 @@ module.exports = function(gulp) {
 
 
 		], function(err) {
+			var gulpError = null;
 			if(err) {
-				console.log('task failed:'.bold.red, err);
+				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				console.log('nice. thanks for the task!'.bold.green, "\n");
+				gutil.log('nice. thanks for the task!'.bold, "\n");
 			}
-			done();
+			done(gulpError);
 		});
 
 	});
