@@ -1,0 +1,33 @@
+{
+  "name": "gulp-brancher",
+  "version": "1.0.0",
+  "description": "Helps to work and automate with complex branches via gulp",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lunow/gulp-brancher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lunow/gulp-brancher/issues"
+  },
+  "homepage": "https://github.com/lunow/gulp-brancher#readme",
+  "devDependencies": {
+    "async": "^1.5.2",
+    "colors": "^1.1.2",
+    "git-branch": "^0.3.0",
+    "git-branches": "0.0.2",
+    "git-state": "^2.5.1",
+    "gulp": "^3.9.1",
+    "gulp-git": "^1.7.0",
+    "gulp-util": "^3.0.7",
+    "prompt": "^1.0.0",
+    "slug": "^0.9.1",
+    "yargs": "^4.1.0"
+  }
+}
