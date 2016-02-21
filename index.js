@@ -19,9 +19,10 @@
  *	TODO: Move this script inside a package and make an own repo for it.
  */
 
-var gulp = require('gulp');
+var _ = require('lodash');
 var git = require('gulp-git');
 var branch = require('git-branch');
+var branches = require('git-branches');
 var async = require('async');
 var gitStatus = require('git-state');
 var prompt = require('prompt');
@@ -29,6 +30,7 @@ var slug = require('slug');
 var argv = require('yargs').argv;
 var colors = require('colors');
 var gutil = require('gulp-util');
+var exec = require('child_process').exec;
 
 
 module.exports = function(gulp) {
@@ -101,107 +103,19 @@ module.exports = function(gulp) {
 		], function(err) {
 			var gulpError = null;
 			if(err) {
-				// gutil.log('fix failed:'.bold.red, err);
 				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				gutil.log('okidoki, please start the fix! call "gulp fix-done" when ready.'.bold.green, "\n");
+				gutil.log('okidoki, please start the fix! call "gulp fix-done" when ready.'.bold);
 			}
 			done(gulpError);
 		});
 	});
 
+
 	gulp.task('fix-done', function(done) {
 		
 		async.waterfall([
-			//supposed to be on release branch
-			function(checkBranchCallback) {
-				branch(function(err, res) {
-					if(err) {
-						checkBranchCallback(err);
-						return;
-					}
-
-					checkBranchCallback(res.substr(0,4) === 'fix/' ? null : 'you are not on a fix branch. currently on "'+res+'"', res);
-				});
-			},
-
-			//supposed to work on a clean directory
-			function(branchName, cleanDirCallback) {
-				gitStatus.check('./', function(err, result) {
-					if(err) {
-						cleanDirCallback(err);
-						return;
-					}
-
-					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run git add and git commit to save your changes before', branchName);
-				});
-			},
-
-			//merge into dev branch
-			function(branchName, mergeToDevBranchCallback) {
-				async.waterfall([
-					//checkout branch
-					function(checkoutBranchCallback) {
-						git.checkout('dev', {}, checkoutBranchCallback);
-					},
-
-					//merge fix
-					function(mergefixCallback) {
-						git.merge(branchName, { args: '--no-ff' }, mergefixCallback);
-					}
-				], function(err) {
-					mergeToDevBranchCallback(err, branchName);
-				});
-			},
-
-			//merge into release branch
-			function(branchName, mergeToreleaseBranchCallback) {
-				async.waterfall([
-					//checkout branch
-					function(checkoutBranchCallback) {
-						git.checkout('release', {}, checkoutBranchCallback);
-					},
-
-					//merge fix
-					function(mergefixCallback) {
-						git.merge(branchName, { args: '--no-ff' }, mergefixCallback);
-					}
-				], function(err) {
-					mergeToreleaseBranchCallback(err, branchName);
-				});
-			}
-
-
-		], function(err) {
-			if(err) {
-				console.log('fix failed:'.bold.red, err);
-			}
-			else {
-				console.log('nice. thanks for the fix.'.bold.green, "\n");
-			}
-			done();
-		});
-
-	});
-
-
-
-	gulp.task('task', function(done) {
-
-		async.waterfall([
-			//supposed to be on release branch
-			function(checkBranchCallback) {
-				branch(function(err, res) {
-					if(err) {
-						checkBranchCallback(err);
-						return;
-					}
-
-					checkBranchCallback(res === 'dev' ? null : 'please start from dev branch. currently on "'+res+'"');
-				});
-			},
-
 			//supposed to work on a clean directory
 			function(cleanDirCallback) {
 				gitStatus.check('./', function(err, result) {
@@ -214,9 +128,119 @@ module.exports = function(gulp) {
 				});
 			},
 
+			//supposed to be on fix branch
+			function(checkBranchCallback) {
+				branch(function(err, branch_name) {
+					if(err) {
+						checkBranchCallback(err);
+						return;
+					}
+
+					checkBranchCallback(branch_name.substr(0,4) === 'fix/' ? null : 'you are not on a fix branch. currently on "'+branch_name+'"', branch_name);
+				});
+			},
+
+			//find latest release branch
+			function(branch_name, findLatestReleaseBranchCallback) {
+				exec('git branch', {}, function(err, stdout, stderr) {
+					if(err || stderr) {
+						findLatestReleaseBranchCallback(err || stderr);
+						return;
+					}
+					
+					var release_branches = []
+					_.each(stdout.split("\n"), function(branch) {
+						branch = _.trim(branch).replace('* ', '');
+						if(branch.substr(0, 7) == 'release') {
+							release_branches.push(branch);
+						}
+					}).sort(function(a, b){return a.split('-')[1]-b.split('-')[1]});
+					var latest_release = release_branches.pop();
+					gutil.log('assuming latest release branch is', latest_release);
+					findLatestReleaseBranchCallback(null, branch_name, latest_release);
+				});
+			},
+
+			//merge into dev branch
+			function(branch_name, release_branch, mergeToDevBranchCallback) {
+				async.waterfall([
+					//checkout dev branch
+					function(checkoutBranchCallback) {
+						git.checkout('dev', {}, checkoutBranchCallback);
+					},
+
+					//merge fix
+					function(mergefixCallback) {
+						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
+					}
+				], function(err) {
+					mergeToDevBranchCallback(err, branch_name, release_branch);
+				});
+			},
+
+			//merge into release branch
+			function(branch_name, release_branch, mergeToreleaseBranchCallback) {
+				async.waterfall([
+					//checkout release_branch branch
+					function(checkoutBranchCallback) {
+						git.checkout(release_branch, {}, checkoutBranchCallback);
+					},
+
+					//merge fix
+					function(mergefixCallback) {
+						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
+					}
+				], function(err) {
+					mergeToreleaseBranchCallback(err, branch_name);
+				});
+			}
+
+
+		], function(err) {
+			var gulpError = null;
+			if(err) {
+				gulpError = new gutil.PluginError('gulp-brancher', err);
+			}
+			else {
+				gutil.log('nice. thanks for the fix.'.bold);
+			}
+			done(gulpError);
+		});
+
+	});
+
+
+
+	gulp.task('task', function(done) {
+
+		async.waterfall([
+			//supposed to be on dev branch
+			function(checkBranchCallback) {
+				branch(function(err, res) {
+					if(err) {
+						checkBranchCallback(err);
+						return;
+					}
+
+					checkBranchCallback(res === 'dev' ? null : 'please start from "dev" branch. currently on "'+res+'"');
+				});
+			},
+
+			//supposed to work on a clean directory
+			function(cleanDirCallback) {
+				gitStatus.check('./', function(err, result) {
+					if(err) {
+						cleanDirCallback(err);
+						return;
+					}
+
+					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run `git add` and `git commit` to save your changes before');
+				});
+			},
+
 			//pull current state from server
 			function(pullCallback) {
-				git.pull('origin', 'dev', function(err) {
+				git.pull('origin', 'dev', { args: '--rebase' }, function(err) {
 					if(err) {
 						console.log('warning! pull not possible', err.toString());
 					}
@@ -244,13 +268,14 @@ module.exports = function(gulp) {
 			}
 
 		], function(err) {
+			var gulpError = null;
 			if(err) {
-				console.log('task failed:'.bold.red, err);
+				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				console.log('okidoki, please start the task! call "gulp task-done" when ready.'.bold.green, "\n");
+				gutil.log('okidoki, please start the task! call `gulp task-done` when ready.'.bold);
 			}
-			done();
+			done(gulpError);
 		});
 
 
@@ -259,7 +284,7 @@ module.exports = function(gulp) {
 	gulp.task('task-done', function(done) {
 		
 		async.waterfall([
-			//supposed to be on beta branch
+			//supposed to be on task branch
 			function(checkBranchCallback) {
 				branch(function(err, res) {
 					if(err) {
@@ -302,13 +327,14 @@ module.exports = function(gulp) {
 
 
 		], function(err) {
+			var gulpError = null;
 			if(err) {
-				console.log('task failed:'.bold.red, err);
+				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				console.log('nice. thanks for the task!'.bold.green, "\n");
+				gutil.log('nice. thanks for the task!'.bold, "\n");
 			}
-			done();
+			done(gulpError);
 		});
 
 	});
