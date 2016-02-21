@@ -22,7 +22,6 @@
 var _ = require('lodash');
 var git = require('gulp-git');
 var branch = require('git-branch');
-var branches = require('git-branches');
 var async = require('async');
 var gitStatus = require('git-state');
 var prompt = require('prompt');
