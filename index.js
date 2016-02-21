@@ -19,9 +19,10 @@
  *	TODO: Move this script inside a package and make an own repo for it.
  */
 
-var gulp = require('gulp');
+var _ = require('lodash');
 var git = require('gulp-git');
 var branch = require('git-branch');
+var branches = require('git-branches');
 var async = require('async');
 var gitStatus = require('git-state');
 var prompt = require('prompt');
@@ -29,6 +30,7 @@ var slug = require('slug');
 var argv = require('yargs').argv;
 var colors = require('colors');
 var gutil = require('gulp-util');
+var exec = require('child_process').exec;
 
 
 module.exports = function(gulp) {
@@ -101,33 +103,43 @@ module.exports = function(gulp) {
 		], function(err) {
 			var gulpError = null;
 			if(err) {
-				// gutil.log('fix failed:'.bold.red, err);
 				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				gutil.log('okidoki, please start the fix! call "gulp fix-done" when ready.'.bold.green, "\n");
+				gutil.log('okidoki, please start the fix! call "gulp fix-done" when ready.'.bold);
 			}
 			done(gulpError);
+		});
+	});
+
+	gulp.task('find-release-branch', function(done) {
+		exec('git branch', {}, function(err, stdout, stderr) {
+			if(err || stderr) {
+				done(err || stderr);
+				return;
+			}
+			console.log(stdout);
+			console.log('---');
+			var release_branches = []
+			_.each(stdout.split("\n"), function(branch) {
+				branch = _.trim(branch).replace('* ', '');
+				if(branch.substr(0, 7) == 'release') {
+					release_branches.push(branch);
+				}
+			}).sort(function(a, b){return a.split('-')[1]-b.split('-')[1]});
+			console.log(release_branches);
+
+
+			
+			done();
 		});
 	});
 
 	gulp.task('fix-done', function(done) {
 		
 		async.waterfall([
-			//supposed to be on release branch
-			function(checkBranchCallback) {
-				branch(function(err, res) {
-					if(err) {
-						checkBranchCallback(err);
-						return;
-					}
-
-					checkBranchCallback(res.substr(0,4) === 'fix/' ? null : 'you are not on a fix branch. currently on "'+res+'"', res);
-				});
-			},
-
 			//supposed to work on a clean directory
-			function(branchName, cleanDirCallback) {
+			function(cleanDirCallback) {
 				gitStatus.check('./', function(err, result) {
 					if(err) {
 						cleanDirCallback(err);
@@ -138,8 +150,25 @@ module.exports = function(gulp) {
 				});
 			},
 
-			//merge into dev branch
-			function(branchName, mergeToDevBranchCallback) {
+			//supposed to be on fix branch
+			function(checkBranchCallback) {
+				branch(function(err, branch_name) {
+					if(err) {
+						checkBranchCallback(err);
+						return;
+					}
+
+					checkBranchCallback(branch_name.substr(0,4) === 'fix/' ? null : 'you are not on a fix branch. currently on "'+branch_name+'"', branch_name);
+				});
+			},
+
+			//find latest release branch
+			function(branch_name, findLatestReleaseBranchCallback) {
+
+			},
+
+			//merge into release branch
+			function(branch_name, mergeToDevBranchCallback) {
 				async.waterfall([
 					//checkout branch
 					function(checkoutBranchCallback) {
@@ -148,10 +177,10 @@ module.exports = function(gulp) {
 
 					//merge fix
 					function(mergefixCallback) {
-						git.merge(branchName, { args: '--no-ff' }, mergefixCallback);
+						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
 					}
 				], function(err) {
-					mergeToDevBranchCallback(err, branchName);
+					mergeToDevBranchCallback(err, branch_name);
 				});
 			},
 

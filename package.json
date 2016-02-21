@@ -26,8 +26,12 @@
     "gulp": "^3.9.1",
     "gulp-git": "^1.7.0",
     "gulp-util": "^3.0.7",
+    "lodash": "^4.5.0",
     "prompt": "^1.0.0",
     "slug": "^0.9.1",
     "yargs": "^4.1.0"
+  },
+  "dependencies": {
+    "gulp-shell": "^0.5.2"
   }
 }
