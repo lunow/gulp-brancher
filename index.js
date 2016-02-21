@@ -214,7 +214,7 @@ module.exports = function(gulp) {
 	gulp.task('task', function(done) {
 
 		async.waterfall([
-			//supposed to be on release branch
+			//supposed to be on dev branch
 			function(checkBranchCallback) {
 				branch(function(err, res) {
 					if(err) {
@@ -222,7 +222,7 @@ module.exports = function(gulp) {
 						return;
 					}
 
-					checkBranchCallback(res === 'dev' ? null : 'please start from dev branch. currently on "'+res+'"');
+					checkBranchCallback(res === 'dev' ? null : 'please start from "dev" branch. currently on "'+res+'"');
 				});
 			},
 
@@ -234,13 +234,13 @@ module.exports = function(gulp) {
 						return;
 					}
 
-					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run git add and git commit to save your changes before');
+					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run `git add` and `git commit` to save your changes before');
 				});
 			},
 
 			//pull current state from server
 			function(pullCallback) {
-				git.pull('origin', 'dev', function(err) {
+				git.pull('origin', 'dev', { args: '--rebase' }, function(err) {
 					if(err) {
 						console.log('warning! pull not possible', err.toString());
 					}
@@ -268,13 +268,14 @@ module.exports = function(gulp) {
 			}
 
 		], function(err) {
+			var gulpError = null;
 			if(err) {
-				console.log('task failed:'.bold.red, err);
+				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				console.log('okidoki, please start the task! call "gulp task-done" when ready.'.bold.green, "\n");
+				gutil.log('okidoki, please start the task! call `gulp task-done` when ready.'.bold);
 			}
-			done();
+			done(gulpError);
 		});
 
 
