@@ -124,7 +124,7 @@ module.exports = function(gulp) {
 						return;
 					}
 
-					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run git add and git commit to save your changes before', branchName);
+					cleanDirCallback(result.dirty === 0 ? null : 'working directory is dirty. run git add and git commit to save your changes before');
 				});
 			},
 
