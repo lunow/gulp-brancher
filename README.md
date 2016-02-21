@@ -11,7 +11,11 @@ Require the file inside your `gulpfile.js`
 
 
 ## Preparation
-Read "A successful Git branching model" (http://nvie.com/posts/a-successful-git-branching-model/)
+Read (A successful Git branching model)[http://nvie.com/posts/a-successful-git-branching-model/]
+
+Create a branch `dev`. This holds the development version and every task is starting from that.
+
+If you prepare a release, create a branch `release-X` where the X is an increasing release number. Its important that its increase!
 
 
 ## Create and fix a release
@@ -27,3 +31,21 @@ Now you can start to work on a fix with
 
 	gulp fix -m "i fix something"
 
+If you are done, call `gulp fix-done`
+
+
+## Start work on a task
+
+	git checkout dev
+	gulp task -m "what are you doing"
+
+If you are done, call `gulp task-done`
+
+
+## Pro Tip
+Add the following lines to your `~/.profile` file and get rid of `gulp` in every task.
+
+	alias task='gulp task'
+	alias task-done='gulp task-done'
+	alias fix='gulp fix'
+	alias fix-done='gulp fix-done'
