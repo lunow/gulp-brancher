@@ -2,7 +2,7 @@
  *	GULP BRANCHER
  *  *************
  *
- *	Version 2
+ *	Version 2.1
  *
  *	Use the gulp tasks to start your work.
  *
@@ -11,12 +11,8 @@
  *
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
- *
- *	WARNING: 	This file as to be synced with all repositories!
- *				If you change something here, copy-past it to 
- *				the other repos.
- *
- *	TODO: Move this script inside a package and make an own repo for it.
+ *	Changelog:
+ *		2.1: if you have merge conflicts in `task-done` it warns you and shows a list
  */
 
 var _ = require('lodash');
@@ -320,7 +316,27 @@ module.exports = function(gulp) {
 						git.merge(branchName, { args: '--no-ff' }, mergetaskCallback);
 					}
 				], function(err) {
-					mergeToDevBranchCallback(err, branchName);
+					if(err) {
+						//ohhhh noooo... the merge failed. most likley because there are changes on the dev branch
+						gutil.log('merge failed!'.bold.red, 'sorry, but you have to resolve the conflicts by hand.');
+						git.status({ args: '-s', quiet: true}, function(err, stdout) {
+							if(err) {
+								mergeToDevBranchCallback(err);
+							}
+							else {
+								var lines = stdout.split("\n");
+								var output = _.filter(lines, function(line) {
+									return line.substr(0,1) == 'U';
+								});
+								gutil.log('Here are the problematic files:', "\n", output.join("\n"));
+								gutil.log('if you want to abort this merge, run `git merge --abort`');
+								mergeToDevBranchCallback('merge not possible');
+							}
+						});
+					}
+					else {
+						mergeToDevBranchCallback(err, branchName);
+					}
 				});
 			}
 
