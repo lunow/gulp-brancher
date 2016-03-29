@@ -14,6 +14,9 @@
  *	Changelog:
  *		2.2
  *			- throw events to make things happen after a *-done task is run
+ *			- on fix-done, merge release first and dev after
+ *			- warning and list for fix-done like in task-done
+ *			- better current release branch detection
  *		2.1
  *			- if you have merge conflicts in `task-done` it warns you and shows a list
  */
@@ -35,8 +38,10 @@ var exec = require('child_process').exec;
 
 module.exports = function(gulp) {
 
+	var my = {};
+
 	//a few helpers to be DRY
-	var __mergeFailed = function(aCallback) {
+	my.mergeFailed = function(aCallback) {
 		gutil.log('merge failed!'.bold.red, 'sorry, but you have to resolve the conflicts by hand.');
 		git.status({ args: '-s', quiet: true}, function(err, stdout) {
 			if(err) {
@@ -52,6 +57,25 @@ module.exports = function(gulp) {
 				aCallback('merge not possible');
 			}
 		});
+	};
+
+	my.getReleaseBranch = function(aStdout) {
+		var release_branches = [];
+		// console.log('---->', aStdout);
+		//find all release branches
+		_.each(aStdout.split("\n"), function(branch) {
+			branch = _.trim(branch).replace('* ', '');
+			if(branch.substr(0, 7) == 'release') {
+				release_branches.push(branch);
+			}
+		});
+		//order them
+		release_branches.sort(function(a, b) {
+			return a.split('-')[1] - b.split('-')[1];
+		});
+		// console.log('---->', release_branches);
+		//take the last one
+		return release_branches.pop();
 	};
 
 	
@@ -167,15 +191,8 @@ module.exports = function(gulp) {
 						return;
 					}
 					
-					var release_branches = [];
-					_.each(stdout.split("\n"), function(branch) {
-						branch = _.trim(branch).replace('* ', '');
-						if(branch.substr(0, 7) == 'release') {
-							release_branches.push(branch);
-						}
-					}).sort(function(a, b){return a.split('-')[1]-b.split('-')[1]});
-					var latest_release = release_branches.pop();
-					gutil.log('assuming latest release branch is', latest_release);
+					var latest_release = my.getReleaseBranch(stdout);
+					gutil.log('assuming latest release branch is', String(latest_release).bold);
 					findLatestReleaseBranchCallback(null, branch_name, latest_release);
 				});
 			},
@@ -195,19 +212,19 @@ module.exports = function(gulp) {
 				], function(err) {
 					if(err) {
 						//fck, merge failed. to bad. should not happen on release branch
-						__mergeFailed(function(err) {
-							mergeToReleaseBranchCallback(err, branch_name);
+						my.mergeFailed(function(err) {
+							mergeToReleaseBranchCallback(err, branch_name, release_branch);
 						});
 					}
 					else {
 						gutil.log('fix successfull merged into', release_branch);
-						mergeToReleaseBranchCallback(err, branch_name);
+						mergeToReleaseBranchCallback(err, branch_name, release_branch);
 					}
 				});
 			},
 
 			//merge into dev branch
-			function(branch_name, mergeToDevBranchCallback) {
+			function(branch_name, release_branch, mergeToDevBranchCallback) {
 				async.waterfall([
 					//checkout dev branch
 					function(checkoutBranchCallback) {
@@ -221,12 +238,17 @@ module.exports = function(gulp) {
 				], function(err) {
 					if(err) {
 						//oh no, merge into dev failed. most likley because of the version number
-						__mergeFailed(mergeToDevBranchCallback);
+						my.mergeFailed(mergeToDevBranchCallback);
 					}
 					else {
-						mergeToDevBranchCallback(err);
+						mergeToDevBranchCallback(err, release_branch);
 					}
 				});
+			},
+
+			//switch back to release branch
+			function(release_branch, switchBackToReleaseBranchCallback) {
+				git.checkout(release_branch, {}, switchBackToReleaseBranchCallback);
 			}
 
 
@@ -358,7 +380,7 @@ module.exports = function(gulp) {
 				], function(err) {
 					if(err) {
 						//ohhhh noooo... the merge failed. most likley because there are changes on the dev branch
-						__mergeFailed(mergeToDevBranchCallback);
+						my.mergeFailed(mergeToDevBranchCallback);
 					}
 					else {
 						mergeToDevBranchCallback(err, branchName);
@@ -380,6 +402,8 @@ module.exports = function(gulp) {
 		});
 
 	});
+
+	eventEmitter.__my = my;
 
 	return eventEmitter;
 };
