@@ -2,7 +2,7 @@
  *	GULP BRANCHER
  *  *************
  *
- *	Version 2.1
+ *	Version 2.2
  *
  *	Use the gulp tasks to start your work.
  *
@@ -12,9 +12,14 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
- *		2.1: if you have merge conflicts in `task-done` it warns you and shows a list
+ *		2.2
+ *			- throw events to make things happen after a *-done task is run
+ *		2.1
+ *			- if you have merge conflicts in `task-done` it warns you and shows a list
  */
 
+var events = require('events');
+var eventEmitter = new events.EventEmitter();
 var _ = require('lodash');
 var git = require('gulp-git');
 var branch = require('git-branch');
@@ -199,6 +204,7 @@ module.exports = function(gulp) {
 			else {
 				gutil.log('nice. thanks for the fix.'.bold);
 			}
+			eventEmitter.emit('fix-done', gulpError);
 			done(gulpError);
 		});
 
@@ -349,8 +355,11 @@ module.exports = function(gulp) {
 			else {
 				gutil.log('nice. thanks for the task!'.bold, "\n");
 			}
+			eventEmitter.emit('task-done', gulpError);
 			done(gulpError);
 		});
 
 	});
+
+	return eventEmitter;
 };
