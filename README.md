@@ -42,6 +42,23 @@ If you are done, call `gulp fix-done`
 If you are done, call `gulp task-done`
 
 
+## Integrate it in your workflow
+
+The brancher returns an eventEmitter that get called when a fix or a task is done. Do something, e.g. run your tests.
+
+	var brancher = require('gulp-brancher')(gulp);
+	brancher.on('task-done', function(err) {
+		if(!err) {
+			//do something great here!
+		}
+	});
+
+	brancher.on('fix-done', function(err) {
+		//here also
+	});
+
+
+
 ## Pro Tip
 Add the following lines to your `~/.profile` file and get rid of `gulp` in every task.
 

@@ -34,6 +34,26 @@ var exec = require('child_process').exec;
 
 
 module.exports = function(gulp) {
+
+	//a few helpers to be DRY
+	var __mergeFailed = function(aCallback) {
+		gutil.log('merge failed!'.bold.red, 'sorry, but you have to resolve the conflicts by hand.');
+		git.status({ args: '-s', quiet: true}, function(err, stdout) {
+			if(err) {
+				aCallback(err);
+			}
+			else {
+				var lines = stdout.split("\n");
+				var output = _.filter(lines, function(line) {
+					return line.substr(0,1) == 'U';
+				});
+				gutil.log('Here are the problematic files:', "\n", output.join("\n"));
+				gutil.log('if you want to abort this merge, run `git merge --abort`');
+				aCallback('merge not possible');
+			}
+		});
+	};
+
 	
 	//start a new fix. it has to start from a release branch
 	gulp.task('fix', function(done) {
@@ -72,7 +92,7 @@ module.exports = function(gulp) {
 			function(branch_name, pullCallback) {
 				git.pull('origin', branch_name, { args: '--rebase' }, function(err) {
 					if(err) {
-						pullCallback('warning! pull not possible: '+ err.toString());
+						gutil.log('warning! pull not possible: '+ err.toString());
 						return;
 					}
 
@@ -106,7 +126,7 @@ module.exports = function(gulp) {
 				gulpError = new gutil.PluginError('gulp-brancher', err);
 			}
 			else {
-				gutil.log('okidoki, please start the fix! call "gulp fix-done" when ready.'.bold);
+				gutil.log('okidoki, please start the fix! call `gulp fix-done` when ready.'.bold);
 			}
 			done(gulpError);
 		});
@@ -148,7 +168,7 @@ module.exports = function(gulp) {
 						return;
 					}
 					
-					var release_branches = []
+					var release_branches = [];
 					_.each(stdout.split("\n"), function(branch) {
 						branch = _.trim(branch).replace('* ', '');
 						if(branch.substr(0, 7) == 'release') {
@@ -161,25 +181,8 @@ module.exports = function(gulp) {
 				});
 			},
 
-			//merge into dev branch
-			function(branch_name, release_branch, mergeToDevBranchCallback) {
-				async.waterfall([
-					//checkout dev branch
-					function(checkoutBranchCallback) {
-						git.checkout('dev', {}, checkoutBranchCallback);
-					},
-
-					//merge fix
-					function(mergefixCallback) {
-						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
-					}
-				], function(err) {
-					mergeToDevBranchCallback(err, branch_name, release_branch);
-				});
-			},
-
 			//merge into release branch
-			function(branch_name, release_branch, mergeToreleaseBranchCallback) {
+			function(branch_name, release_branch, mergeToReleaseBranchCallback) {
 				async.waterfall([
 					//checkout release_branch branch
 					function(checkoutBranchCallback) {
@@ -191,7 +194,39 @@ module.exports = function(gulp) {
 						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
 					}
 				], function(err) {
-					mergeToreleaseBranchCallback(err, branch_name);
+					if(err) {
+						//fck, merge failed. to bad. should not happen on release branch
+						__mergeFailed(function(err) {
+							mergeToReleaseBranchCallback(err, branch_name);
+						});
+					}
+					else {
+						gutil.log('fix successfull merged into', release_branch);
+						mergeToReleaseBranchCallback(err, branch_name);
+					}
+				});
+			},
+
+			//merge into dev branch
+			function(branch_name, mergeToDevBranchCallback) {
+				async.waterfall([
+					//checkout dev branch
+					function(checkoutBranchCallback) {
+						git.checkout('dev', {}, checkoutBranchCallback);
+					},
+
+					//merge fix
+					function(mergefixCallback) {
+						git.merge(branch_name, { args: '--no-ff' }, mergefixCallback);
+					}
+				], function(err) {
+					if(err) {
+						//oh no, merge into dev failed. most likley because of the version number
+						__mergeFailed(mergeToDevBranchCallback);
+					}
+					else {
+						mergeToDevBranchCallback(err);
+					}
 				});
 			}
 
@@ -243,7 +278,7 @@ module.exports = function(gulp) {
 			function(pullCallback) {
 				git.pull('origin', 'dev', { args: '--rebase' }, function(err) {
 					if(err) {
-						console.log('warning! pull not possible', err.toString());
+						gutil.log('warning! pull not possible', err.toString());
 					}
 
 					pullCallback();
@@ -324,21 +359,7 @@ module.exports = function(gulp) {
 				], function(err) {
 					if(err) {
 						//ohhhh noooo... the merge failed. most likley because there are changes on the dev branch
-						gutil.log('merge failed!'.bold.red, 'sorry, but you have to resolve the conflicts by hand.');
-						git.status({ args: '-s', quiet: true}, function(err, stdout) {
-							if(err) {
-								mergeToDevBranchCallback(err);
-							}
-							else {
-								var lines = stdout.split("\n");
-								var output = _.filter(lines, function(line) {
-									return line.substr(0,1) == 'U';
-								});
-								gutil.log('Here are the problematic files:', "\n", output.join("\n"));
-								gutil.log('if you want to abort this merge, run `git merge --abort`');
-								mergeToDevBranchCallback('merge not possible');
-							}
-						});
+						__mergeFailed(mergeToDevBranchCallback);
 					}
 					else {
 						mergeToDevBranchCallback(err, branchName);
