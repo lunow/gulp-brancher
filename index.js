@@ -93,7 +93,6 @@ module.exports = function(gulp) {
 				git.pull('origin', branch_name, { args: '--rebase' }, function(err) {
 					if(err) {
 						gutil.log('warning! pull not possible: '+ err.toString());
-						return;
 					}
 
 					pullCallback();
