@@ -60,7 +60,7 @@ The brancher returns an eventEmitter that get called when a fix or a task is don
 
 
 ## Pro Tip
-Add the following lines to your `~/.profile` file and get rid of `gulp` in every task.
+Add the following lines to your `~/.profile` file and get rid of `gulp` in every command.
 
 	alias task='gulp task'
 	alias task-done='gulp task-done'

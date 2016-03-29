@@ -2,7 +2,7 @@
  *	GULP BRANCHER
  *  *************
  *
- *	Version 2.2
+ *	Version 2.2.1
  *
  *	Use the gulp tasks to start your work.
  *
@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *		2.2.1
+ *			- accidentally pushed 2.2 already, sorry
  *		2.2
  *			- throw events to make things happen after a *-done task is run
  *			- on fix-done, merge release first and dev after
