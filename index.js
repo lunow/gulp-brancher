@@ -102,11 +102,13 @@ module.exports = function(gulp) {
 
 			//push release branch to server
 			function(release_branch, pushReleaseBranchCallback) {
+				gutil.log('pushing', release_branch+'...');
 				git.push('origin', release_branch, pushReleaseBranchCallback);
 			},
 
 			//push dev branch to server
 			function(pushDevBranchCallback) {
+				gutil.log('pushing dev...');
 				git.push('origin', 'dev', pushDevBranchCallback);
 			}
 
