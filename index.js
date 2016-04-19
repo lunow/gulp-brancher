@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *		2.3
+ *			- added cmd `gulp fix-push` to push release and dev with one command
  *		2.2.1
  *			- accidentally pushed 2.2 already, sorry
  *		2.2
@@ -80,10 +82,50 @@ module.exports = function(gulp) {
 		return release_branches.pop();
 	};
 
+
+	gulp.task('fix-push', function(done) {
+		async.waterfall([
+
+			//find latest release branch
+			function(findLatestReleaseBranchCallback) {
+				exec('git branch', {}, function(err, stdout, stderr) {
+					if(err || stderr) {
+						findLatestReleaseBranchCallback(err || stderr);
+						return;
+					}
+					
+					var latest_release = my.getReleaseBranch(stdout);
+					gutil.log('assuming latest release branch is', String(latest_release).bold);
+					findLatestReleaseBranchCallback(null, latest_release);
+				});
+			},
+
+			//push release branch to server
+			function(release_branch, pushReleaseBranchCallback) {
+				git.push('origin', release_branch, pushReleaseBranchCallback);
+			},
+
+			//push dev branch to server
+			function(pushDevBranchCallback) {
+				git.push('origin', 'dev', pushDevBranchCallback);
+			}
+
+
+		], function(err) {
+			var gulpError = null;
+			if(err) {
+				gulpError = new gutil.PluginError('gulp-brancher', err);
+			}
+			else {
+				gutil.log('I pushed dev and release branch for you.'.bold);
+			}
+			done(gulpError);
+		});
+	});
+
 	
 	//start a new fix. it has to start from a release branch
 	gulp.task('fix', function(done) {
-
 		async.waterfall([
 			//supposed to work on a clean directory
 			function(cleanDirCallback) {
@@ -159,7 +201,6 @@ module.exports = function(gulp) {
 
 
 	gulp.task('fix-done', function(done) {
-		
 		async.waterfall([
 			//supposed to work on a clean directory
 			function(cleanDirCallback) {
@@ -265,13 +306,11 @@ module.exports = function(gulp) {
 			eventEmitter.emit('fix-done', gulpError);
 			done(gulpError);
 		});
-
 	});
 
 
 
 	gulp.task('task', function(done) {
-
 		async.waterfall([
 			//supposed to be on dev branch
 			function(checkBranchCallback) {
@@ -336,12 +375,9 @@ module.exports = function(gulp) {
 			}
 			done(gulpError);
 		});
-
-
 	});
 
 	gulp.task('task-done', function(done) {
-		
 		async.waterfall([
 			//supposed to be on task branch
 			function(checkBranchCallback) {
@@ -402,7 +438,6 @@ module.exports = function(gulp) {
 			eventEmitter.emit('task-done', gulpError);
 			done(gulpError);
 		});
-
 	});
 
 	eventEmitter.__my = my;
