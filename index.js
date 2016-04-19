@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *		2.3.1
+ *			- better log output
  *		2.3
  *			- added cmd `gulp fix-push` to push release and dev with one command
  *		2.2.1
