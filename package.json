@@ -1,6 +1,6 @@
 {
   "name": "gulp-brancher",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Helps to work and automate with complex branches via gulp",
   "main": "index.js",
   "scripts": {
@@ -21,14 +21,17 @@
     "async": "^1.5.2",
     "colors": "^1.1.2",
     "git-branch": "^0.3.0",
+    "git-history": "0.0.2",
     "git-state": "^2.5.1",
     "gulp": "^3.9.1",
+    "gulp-bump": "^2.4.0",
     "gulp-git": "^1.7.0",
+    "gulp-shell": "^0.5.2",
     "gulp-util": "^3.0.7",
     "lodash": "^4.5.0",
     "prompt": "^1.0.0",
+    "run-sequence": "^1.2.2",
     "slug": "^0.9.1",
-    "yargs": "^4.1.0",
-    "gulp-shell": "^0.5.2"
+    "yargs": "^4.1.0"
   }
 }

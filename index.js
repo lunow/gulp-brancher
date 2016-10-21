@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *      2.4.0
+ *          - Adding version managment
  *		2.3.1
  *			- better log output
  *		2.3
@@ -40,11 +42,16 @@ var argv = require('yargs').argv;
 var colors = require('colors');
 var gutil = require('gulp-util');
 var exec = require('child_process').exec;
+var bump = require('gulp-bump');
+var runSquence = require('run-sequence');
+var fs = require('fs');
+var history = require('git-history');
 
 
 module.exports = function(gulp) {
 
 	var my = {};
+	my.fileAddress = './www/version.json';
 
 	//a few helpers to be DRY
 	my.mergeFailed = function(aCallback) {
@@ -83,6 +90,103 @@ module.exports = function(gulp) {
 		//take the last one
 		return release_branches.pop();
 	};
+
+
+	gulp.task('release', function() {
+		var release_number = argv.n.toString();
+		var regex = new RegExp(release_number + '\\\.[0-9]{1,4}\\\.[0-9]{1,4}');
+		var file = 'release' + release_number + '.md';
+		var message = '';
+		var options = { encoding: 'utf8', flag: 'a' };
+			history().on('data', function (commit) {
+				if(commit.message.match(regex)) {
+					message = commit.message.replace(/^version\s/, '') + '\n';
+					fs.writeFileSync(file, message, options);
+				}
+		});
+	});
+
+	gulp.task('bump-version', function() {
+		// console.log(argv);
+		var type = 'patch';
+		if(argv.prerelease) {
+			type = 'prerelease';
+		}
+		if(argv.minor) {
+			type = 'minor';
+		}
+		if(argv.major) {
+			type = 'major';
+		}
+		console.log('type ->', type);
+
+		return gulp.src(my.fileAddress).pipe(bump({ type: type })).pipe(gulp.dest('./www'));
+	});
+
+	gulp.task('add', function(callback) {
+		exec('git add -A', {}, function(err, stdout, stderr) {
+			if(err || stderr) {
+				callback(err || stderr);
+				return;
+			}
+			// console.log(arguments);
+
+			callback(null, true);
+		});
+	});
+
+	gulp.task('commit', function(callback) {
+		var json = JSON.parse(fs.readFileSync(my.fileAddress));
+		var commit_message = '"version '+ json.version + ' ' + argv.m + '"';
+		exec('git commit -m ' + commit_message, {}, function(err, stdout, stderr) {
+			if(err || stderr) {
+				callback(err || stderr);
+				return;
+			}
+			// console.log(arguments);
+
+			callback(null, true);
+		});
+	});
+
+	gulp.task('version', function(cb) {
+		if(argv.m) {
+			async.waterfall([
+				function(pullCallback) {
+					exec('git pull', {}, function(err, stdout, stderr) {
+						console.log(stdout);
+						if(stdout.match(/conflict/)) {
+							console.log('warning! pull not possible\n');
+							pullCallback('pull not possible');
+						}
+						pullCallback();
+					});
+				}, function(versionCallback) {
+						runSquence('bump-version', 'add', 'commit', versionCallback);
+				}, function(pushCallback) {
+					exec('git push', {}, function(err, stdout, stderr) {
+						console.log(stdout);
+						if(stdout.match(/error/)) {
+							console.log('warning! push not possible', stdout);
+							pushCallback('push not possible');
+						}
+						pushCallback();
+					});
+				}], function(error, data) {
+					if(!error) {
+						cb();
+					}
+					else {
+						console.log('some error happend creating new version', error);
+						cb(error);
+					}
+				});
+		}
+		else {
+			console.log('please give a some message to commit with -m parameter');
+			cb();
+		}
+	});
 
 
 	gulp.task('fix-push', function(done) {
