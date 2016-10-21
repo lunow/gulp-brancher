@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *      2.4.1
+ *          - Setting file address when module initiliazed
  *      2.4.0
  *          - Adding version managment
  *		2.3.1
@@ -48,10 +50,15 @@ var fs = require('fs');
 var history = require('git-history');
 
 
-module.exports = function(gulp) {
+module.exports = function(gulp, fileAddress) {
 
 	var my = {};
-	my.fileAddress = './www/version.json';
+	my.fileAddress = fileAddress;
+	var tempArray = fileAddress.split('/');
+    tempArray.pop();
+    my.dest = tempArray.join("/");
+	// my.dest = fileAddress.split('/').slice(0, -1).join('/');
+
 
 	//a few helpers to be DRY
 	my.mergeFailed = function(aCallback) {
@@ -120,7 +127,7 @@ module.exports = function(gulp) {
 		}
 		console.log('type ->', type);
 
-		return gulp.src(my.fileAddress).pipe(bump({ type: type })).pipe(gulp.dest('./www'));
+		return gulp.src(my.fileAddress).pipe(bump({ type: type })).pipe(gulp.dest(my.dest));
 	});
 
 	gulp.task('add', function(callback) {
