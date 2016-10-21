@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *      2.4.2
+ *          - make the address internal variable
  *      2.4.1
  *          - Setting file address when module initiliazed
  *      2.4.0
@@ -53,11 +55,10 @@ var history = require('git-history');
 module.exports = function(gulp, fileAddress) {
 
 	var my = {};
-	my.fileAddress = fileAddress;
 	var tempArray = fileAddress.split('/');
     tempArray.pop();
-    my.dest = tempArray.join("/");
-	// my.dest = fileAddress.split('/').slice(0, -1).join('/');
+    var dest = tempArray.join("/");
+	// dest = fileAddress.split('/').slice(0, -1).join('/');
 
 
 	//a few helpers to be DRY
@@ -127,7 +128,7 @@ module.exports = function(gulp, fileAddress) {
 		}
 		console.log('type ->', type);
 
-		return gulp.src(my.fileAddress).pipe(bump({ type: type })).pipe(gulp.dest(my.dest));
+		return gulp.src(fileAddress).pipe(bump({ type: type })).pipe(gulp.dest(dest));
 	});
 
 	gulp.task('add', function(callback) {
@@ -143,7 +144,7 @@ module.exports = function(gulp, fileAddress) {
 	});
 
 	gulp.task('commit', function(callback) {
-		var json = JSON.parse(fs.readFileSync(my.fileAddress));
+		var json = JSON.parse(fs.readFileSync(fileAddress));
 		var commit_message = '"version '+ json.version + ' ' + argv.m + '"';
 		exec('git commit -m ' + commit_message, {}, function(err, stdout, stderr) {
 			if(err || stderr) {
