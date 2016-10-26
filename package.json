@@ -1,6 +1,6 @@
 {
   "name": "gulp-brancher",
-  "version": "2.4.1",
+  "version": "2.4.3",
   "description": "Helps to work and automate with complex branches via gulp",
   "main": "index.js",
   "scripts": {

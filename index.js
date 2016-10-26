@@ -12,6 +12,8 @@
  *	Done with your work? Use `gulp task-done` or `gulp fix-done`
  *
  *	Changelog:
+ *		2.4.3
+ *			- set up test to make sure fileAdress is an empty string if it is undefined
  *      2.4.2
  *          - make the address internal variable
  *      2.4.1
@@ -55,6 +57,9 @@ var history = require('git-history');
 module.exports = function(gulp, fileAddress) {
 
 	var my = {};
+	if(_.isEmpty(fileAddress) || !_.isString(fileAddress)) {
+		fileAddress = '';
+	}
 	var tempArray = fileAddress.split('/');
     tempArray.pop();
     var dest = tempArray.join("/");
